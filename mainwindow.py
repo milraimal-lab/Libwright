@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, lambda: self._start_scan(self.last_folder))
         if self.import_enabled and self.import_folder:
             QTimer.singleShot(0, lambda: self._start_import_scan(self.import_folder))
-        self._set_status("Ready — open a folder with  Open Folder  (Ctrl+O)")
+        self._set_status("Ready — choose your library folder with  Library…  (Ctrl+O)")
 
     def _build_ui(self):
         self._build_toolbar()
@@ -207,7 +207,7 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self):
         tb = QToolBar(); tb.setMovable(False); self.addToolBar(tb)
         for a in [
-            ("Open Folder",    "Ctrl+O", self._open_folder),
+            ("Library…",       "Ctrl+O", self._open_folder),
             ("Import…",        "",       self._open_import_dialog),
             ("Rescan",         "F5",     self._rescan),
             None,
@@ -223,6 +223,9 @@ class MainWindow(QMainWindow):
                 act.triggered.connect(slot); tb.addAction(act)
                 if label == "Import…":
                     act.setToolTip("Configure a separate Import folder for unsorted books.")
+                elif label == "Library…":
+                    self.library_act = act
+                    self._update_library_tooltip()
 
         tb.addSeparator()
         self.undo_act = QAction("Undo File Op", self)
@@ -645,11 +648,18 @@ class MainWindow(QMainWindow):
 
     # ── toolbar actions ───────────────────────────────────────────
 
+    def _update_library_tooltip(self):
+        cur = self.last_folder or "(not set)"
+        self.library_act.setToolTip(
+            f"Choose the Library folder (Ctrl+O)\nCurrent: {cur}\n"
+            "Remembered as the default and scanned on startup.")
+
     def _open_folder(self):
         folder = QFileDialog.getExistingDirectory(
-            self, "Open Audiobook Folder", self.last_folder or str(Path.home()))
+            self, "Choose Library Folder", self.last_folder or str(Path.home()))
         if folder:
             self.last_folder = folder
+            self._update_library_tooltip()
             self.move_tab.set_default_destination(folder)
             self._persist_settings()
             self._start_scan(folder)
