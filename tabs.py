@@ -20,7 +20,7 @@ import tagger as tg
 import organizer as org
 
 from constants import *
-from util import parse_audiobook_title, _sanitize, log_line, cover_key
+from util import parse_audiobook_title, log_line, cover_key
 from workers import FieldSaveThread, OrganizeThread
 from dialogs import (RawTagDialog, AddTagDialog, OpenLibraryDialog,
                      CoverViewDialog, SeriesParseDialog, _ClickableLabel)
@@ -959,7 +959,8 @@ class FilesTab(QWidget):
             stem = stem.replace(placeholder, value or "")
         if '{n}' in stem:
             stem = stem.replace('{n}', str(counter).zfill(pad))
-        return _sanitize(stem) or Path(filename).stem
+        # a pattern that comes out empty keeps the file's current name
+        return org.sanitize(stem, fallback=Path(filename).stem)
 
     def _new_names_for(self, book: sc.Book) -> list:
         """New filename stems for every file of *book*, per the pattern controls."""
@@ -1527,24 +1528,8 @@ class MoveOrganiseTab(QWidget):
             def make_updater(rd):
                 def _update(*_):
                     dest = self._dest_edit.text().strip()
-                    author = _sanitize(rd['author'].currentText().strip())
-                    series = _sanitize(rd['series'].currentText().strip())
-                    num    = rd['num'].text().strip()
-                    folder = _sanitize(rd['folder'].text().strip())
-                    if num and folder:
-                        book_folder = f"{num}-{folder}"
-                    elif num:
-                        book_folder = num
-                    else:
-                        book_folder = folder
-                    if dest and author:
-                        parts = [dest, author]
-                        if series: parts.append(series)
-                        if book_folder: parts.append(book_folder)
-                        path_str = str(Path(*parts))
-                        rd['preview'].setText("→  " + path_str)
-                    else:
-                        rd['preview'].setText("")
+                    rd['preview'].setText(
+                        "→  " + str(self._row_destination(rd, dest)[1]) if dest else "")
                 return _update
 
             updater = make_updater(row_dict)
@@ -1558,6 +1543,17 @@ class MoveOrganiseTab(QWidget):
             self._rows_layout.addWidget(row_w)
 
         self._rows_layout.addStretch()
+
+    def _row_destination(self, rd, dest: str):
+        """(title, folder) a row's book will be moved to — the same rules,
+        and the same name cleaning, as auto-organise. Used for both the
+        preview and the actual move so the two can never disagree."""
+        book  = rd['book']
+        title = rd['folder'].text().strip() or book.title or book.display_name
+        folder = org.build_folder_path(
+            dest, rd['author'].currentText().strip(), rd['series'].currentText().strip(),
+            rd['num'].text().strip(), title)
+        return title, folder
 
     def _update_all_previews(self):
         for rd in self._group_rows:
@@ -1575,16 +1571,11 @@ class MoveOrganiseTab(QWidget):
         # Build move list using organizer
         moves = []
         for rd in self._group_rows:
-            book   = rd['book']
-            author = _sanitize(rd['author'].currentText().strip()) or 'Unknown Author'
-            series = _sanitize(rd['series'].currentText().strip())
-            num    = rd['num'].text().strip()
-            folder = _sanitize(rd['folder'].text().strip())
-
-            target_dir = org.build_folder_path(dest, author, series, num, folder or book.title)
+            book = rd['book']
+            title, target_dir = self._row_destination(rd, dest)
             total = book.file_count
             for i, af in enumerate(book.files, 1):
-                stem = org.build_file_name(folder or book.title, str(i), str(total))
+                stem = org.build_file_name(title, str(i), str(total))
                 dst  = target_dir / (stem + af.ext)
                 moves.append((af.path, dst))
 

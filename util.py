@@ -233,9 +233,6 @@ def parse_series_group(names: list) -> list:
             results.append({'title': n})
     return results
 
-def _sanitize(name: str) -> str:
-    return re.sub(r'[<>:"/\\|?*]', '_', name).strip('. ') or 'Unknown'
-
 def find_ffmpeg() -> Optional[str]:
     """An ffmpeg.exe sitting next to the app (bundled) wins over PATH."""
     if getattr(sys, 'frozen', False):

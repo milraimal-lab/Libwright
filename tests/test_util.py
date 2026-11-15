@@ -1,6 +1,6 @@
-"""Pure helpers: title parsing, filename sanitizing, ffmetadata escaping,
-human-readable size/duration formatting."""
-from util import (parse_audiobook_title, parse_series_group, _sanitize, _ffesc,
+"""Pure helpers: title parsing, ffmetadata escaping, human-readable
+size/duration formatting. (Filename cleaning lives in organizer.sanitize.)"""
+from util import (parse_audiobook_title, parse_series_group, _ffesc,
                   fmt_size, fmt_duration, norm_series_num, cover_key)
 
 
@@ -91,13 +91,6 @@ def test_group_leaves_standalones_alone():
     assert parse_series_group(names) == [{'title': '1984'},
                                          {'title': 'Catch 22'},
                                          {'title': 'The Hobbit'}]
-
-
-def test_sanitize_replaces_forbidden_with_underscore():
-    assert _sanitize('a:b*c') == 'a_b_c'
-
-def test_sanitize_empty_is_unknown():
-    assert _sanitize('   ') == 'Unknown'
 
 
 def test_ffesc_escapes_metadata_specials():

@@ -21,11 +21,12 @@ from pathlib import Path
 _FORBIDDEN = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 
-def sanitize(name: str) -> str:
-    """Strip Windows-invalid characters and trim dots/spaces."""
+def sanitize(name: str, fallback: str = 'Unknown') -> str:
+    """Strip Windows-invalid characters and trim dots/spaces. This is the
+    one cleaner for every file and folder name the app creates."""
     name = _FORBIDDEN.sub('', name)
     name = name.strip('. ')
-    return name or 'Unknown'
+    return name or fallback
 
 
 def pad_num(num_str: str, width: int = 2) -> str:

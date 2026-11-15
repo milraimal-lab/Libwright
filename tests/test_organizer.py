@@ -16,6 +16,10 @@ def test_sanitize_trims_dots_and_spaces():
 def test_sanitize_empty_falls_back():
     assert org.sanitize('***') == 'Unknown'
 
+def test_sanitize_custom_fallback():
+    assert org.sanitize(' . ', fallback='keep me') == 'keep me'
+    assert org.sanitize('a:b', fallback='keep me') == 'ab'
+
 
 # ── pad_num (incl. the 18.5 regression) ──────────────────────────
 
