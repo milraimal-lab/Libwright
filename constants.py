@@ -1,9 +1,7 @@
 """App-wide constants: version, theme, colors, MIME types, search columns."""
 
-import os as _os
-
 APP_NAME    = "Libwright"
-APP_VERSION = "2.10.1"
+APP_VERSION = "2.10.2"
 
 # How many M4B builds may run at once. ffmpeg concat / stream-copy jobs are
 # mostly I/O-bound, so running a few together finishes a batch much faster
@@ -89,8 +87,6 @@ MIME_FILES      = "application/x-audiobook-files"
 MIME_BOOKNODES  = "application/x-audiobook-book-nodes"
 
 MIME_FILEBLOCK  = "application/x-audiobook-file-block"
-
-COL_TITLE, COL_AUTHOR, COL_NARRATOR, COL_SERIES, COL_SNUM, COL_YEAR, COL_PUB = range(7)
 
 COL_NAMES = ["Title", "Author", "Narrator", "Series", "#", "Year", "Publisher"]
 

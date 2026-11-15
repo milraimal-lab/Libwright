@@ -1,20 +1,10 @@
 """Search Metadata dialog: 'By series' seeds the query from series+author,
 and results are sortable without breaking cover/pick association."""
-import os
-
 import pytest
-
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
 import scanner as sc
 
 pytest.importorskip('PyQt6.QtWidgets')
-from PyQt6.QtWidgets import QApplication
-
-
-@pytest.fixture(scope='session')
-def qapp():
-    return QApplication.instance() or QApplication([])
 
 
 @pytest.fixture(autouse=True)

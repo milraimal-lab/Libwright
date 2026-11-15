@@ -4,45 +4,11 @@ Regression guard: Book is a dataclass with eq=True, so Python sets
 __hash__ = None and the object cannot be used as a dict key. Grouping the
 selected rows by Book crashed with TypeError; grouping by book.id is the fix.
 """
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
 
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-
 import scanner as sc
-
-pytest.importorskip('PyQt6.QtWidgets')
-from PyQt6.QtWidgets import QApplication, QMessageBox
-
-
-@pytest.fixture(scope='session')
-def qapp():
-    return QApplication.instance() or QApplication([])
-
-
-@pytest.fixture
-def win(qapp, monkeypatch):
-    """A fully isolated MainWindow: no remembered folders (so it never scans a
-    real library), no writes to the user's settings file, and no modal dialogs
-    (which would block forever with no event loop running)."""
-    import mainwindow as mw
-    monkeypatch.setattr(mw, '_load_settings', lambda: {})
-    monkeypatch.setattr(mw, '_save_settings', lambda d: None)
-    monkeypatch.setattr(QMessageBox, 'information', staticmethod(lambda *a, **k: None))
-    monkeypatch.setattr(QMessageBox, 'warning', staticmethod(lambda *a, **k: None))
-    monkeypatch.setattr(QMessageBox, 'question',
-                        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes))
-    w = mw.MainWindow()
-    w.books.clear()
-    w.import_books.clear()
-    yield w
-    # Clear the unsaved flags so closing can't stall on a confirmation
-    for b in w.books + w.import_books:
-        b.modified = False
-    w.close()
 
 
 def _book(tmp: Path, title, n_files, album_every=5, **kw):

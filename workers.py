@@ -1,11 +1,7 @@
 """Background QThread workers: scanning, hydration, saving, moving, hashing, repair, M4B building."""
 
 from pathlib import Path
-from typing import Optional, List
-import json
 import re
-import shutil
-import sys
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -48,13 +44,8 @@ class HydrateThread(QThread):
             changed = False
             for af in book.files:
                 if self._stop: return
-                if af.hydrated: continue
-                tags = tg.read_tags(af.path)
-                tags.pop('_error', None)
-                af.tags = tags
-                af.duration = float(tags.get('duration', 0) or 0)
-                af.hydrated = True
-                changed = True
+                if af.hydrate():
+                    changed = True
             if changed:
                 self.book_hydrated.emit(book)
 
@@ -67,25 +58,14 @@ class SaveThread(QThread):
         try:
             total = sum(b.file_count for b in self.books); done = 0
             for book in self.books:
-                fields = dict(
-                    title=book.title, album=book.title,
-                    author=book.author, artist=book.author,
-                    narrator=book.narrator, composer=book.narrator,
-                    series=book.series, series_num=book.series_num,
-                    year=book.year, publisher=book.publisher,
-                    genre=book.genre, comment=book.description,
-                    description=book.description,
-                    track_total=str(book.file_count))
+                fields = book.tag_fields()
+                fields['track_total'] = str(book.file_count)
                 for i, af in enumerate(book.files, 1):
                     self.progress.emit(done, total, f"Saving {af.filename}…")
                     fields['track'] = str(i)
                     # Fast scans may not have read this file yet — hydrate now
                     # so its own cover isn't lost.
-                    if not af.hydrated:
-                        t = tg.read_tags(af.path); t.pop('_error', None)
-                        af.tags = t
-                        af.duration = float(t.get('duration', 0) or 0)
-                        af.hydrated = True
+                    af.hydrate()
                     # Explicit cover overrides everything; otherwise each file
                     # keeps its own art (merged episodes stay distinct), with
                     # the book cover only filling in files that have none.
@@ -111,7 +91,6 @@ class DupCheckThread(QThread):
     def stop(self): self._stop = True
 
     def run(self):
-        import hashlib
         groups: dict = {}
         for b in self.books:
             t = (b.title or '').strip().lower()
@@ -141,12 +120,7 @@ class DupCheckThread(QThread):
                 total_bytes += af.path.stat().st_size
             except OSError:
                 pass
-            if not af.hydrated:
-                t = tg.read_tags(af.path)
-                t.pop('_error', None)
-                af.tags = t
-                af.duration = float(t.get('duration', 0) or 0)
-                af.hydrated = True
+            af.hydrate()
         return {'bytes':   total_bytes,
                 'seconds': sum(af.duration for af in book.files),
                 'files':   book.file_count}

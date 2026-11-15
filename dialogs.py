@@ -1,29 +1,19 @@
 """Dialogs: metadata search, scan problems, duplicates, import settings, tag tools, cover viewer."""
 
 from pathlib import Path
-from typing import Optional, List
-import json
-import re
-import shutil
-import sys
+from typing import Optional
 
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSplitter, QLabel, QLineEdit, QPushButton, QTextEdit,
-    QFormLayout, QScrollArea, QGroupBox, QFileDialog, QMessageBox,
-    QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar,
-    QStatusBar, QFrame, QCheckBox, QMenu, QAbstractItemView,
-    QToolBar, QTreeWidget, QTreeWidgetItem, QSizePolicy, QTabWidget,
-    QComboBox, QSpinBox, QGridLayout, QInputDialog, QRadioButton,
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QLabel,
+    QLineEdit, QPushButton, QFileDialog, QMessageBox, QDialog, QTableWidget,
+    QTableWidgetItem, QHeaderView, QFrame, QCheckBox, QAbstractItemView,
+    QComboBox, QRadioButton,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QMimeData, QByteArray, QPoint, QTimer
-from PyQt6.QtGui  import QPixmap, QAction, QColor, QDrag, QFont, QCursor, QPainter, QPen
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QPixmap, QColor
 
 import scanner as sc
 import tagger as tg
-import openlibrary as ol
-import audible as au
-import organizer as org
 
 from constants import *
 from util import (_suggest_fix, find_ffmpeg, log_line, fmt_size, fmt_duration,

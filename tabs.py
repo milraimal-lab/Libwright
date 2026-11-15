@@ -3,28 +3,20 @@
 from pathlib import Path
 from typing import Optional, List
 import json
-import re
-import shutil
-import sys
 
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSplitter, QLabel, QLineEdit, QPushButton, QTextEdit,
-    QFormLayout, QScrollArea, QGroupBox, QFileDialog, QMessageBox,
-    QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar,
-    QStatusBar, QFrame, QCheckBox, QMenu, QAbstractItemView,
-    QToolBar, QTreeWidget, QTreeWidgetItem, QSizePolicy, QTabWidget,
-    QComboBox, QSpinBox, QGridLayout, QInputDialog, QCompleter,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QTextEdit, QScrollArea, QGroupBox, QFileDialog, QMessageBox, QDialog,
+    QTableWidget, QTableWidgetItem, QHeaderView, QFrame, QCheckBox, QMenu,
+    QAbstractItemView, QComboBox, QSpinBox, QGridLayout, QCompleter,
 )
-from PyQt6.QtCore import (Qt, QThread, pyqtSignal, QSize, QMimeData, QByteArray,
-                          QPoint, QTimer, QStringListModel)
-from PyQt6.QtGui  import (QPixmap, QIcon, QAction, QColor, QDrag, QFont, QCursor,
-                          QPainter, QPen)
+from PyQt6.QtCore import (
+    Qt, pyqtSignal, QSize, QMimeData, QByteArray, QPoint, QStringListModel,
+)
+from PyQt6.QtGui import QPixmap, QIcon, QColor, QDrag, QCursor, QPainter, QPen
 
 import scanner as sc
 import tagger as tg
-import openlibrary as ol
-import audible as au
 import organizer as org
 
 from constants import *
@@ -78,7 +70,6 @@ class EditMetadataTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._books: List[sc.Book] = []
-        self._busy = False
         self._field_edits: dict = {}   # key → QLineEdit
         self._completers: dict = {}    # key → (QCompleter, QStringListModel)
         self._extra_edits: list = []   # [(key, original_value, QLineEdit)]
@@ -332,7 +323,6 @@ class EditMetadataTab(QWidget):
     # ── field helpers ─────────────────────────────────────────────
 
     def _load_from_book(self, book: sc.Book):
-        self._busy = True
         self._field_edits['title'].setText(book.title)
         self._field_edits['author'].setText(book.author)
         self._field_edits['narrator'].setText(book.narrator)
@@ -346,15 +336,12 @@ class EditMetadataTab(QWidget):
         self._show_cover(book.cover_art)
         self._save_btn.setEnabled(True)
         self._search_btn.setEnabled(True)
-        self._busy = False
 
     def _clear_fields(self):
-        self._busy = True
         for edit in self._field_edits.values(): edit.clear()
         self._reset_pending_cover()
         self._desc_edit.clear(); self._show_cover(None)
         self._save_btn.setEnabled(False); self._search_btn.setEnabled(False)
-        self._busy = False
 
     def _current_values(self) -> dict:
         vals = {k: e.text().strip() for k, e in self._field_edits.items()}
@@ -593,11 +580,9 @@ class EditMetadataTab(QWidget):
         if dlg.exec() != QDialog.DialogCode.Accepted: return
         r = dlg.get_selected()
         if not r: return
-        self._busy = True
         for key in COL_KEYS:
             if r.get(key):
                 self._field_edits[key].setText(str(r[key]))
-        self._busy = False
 
         # "Apply Picked Fields" commits everything in one go — fields AND
         # cover are written to the selected books, no second Apply needed.

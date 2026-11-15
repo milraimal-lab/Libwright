@@ -1,7 +1,7 @@
 """Small shared helpers: settings, session log, Recycle Bin, ffmpeg lookup, title parsing."""
 
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 import json
 import re
 import shutil

@@ -11,7 +11,6 @@ If a book has no series, the Series level is skipped:
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -100,30 +99,6 @@ def build_folder_path(base_dir: str,
         return base / auth / ser / book_folder
     else:
         return base / auth / title
-
-
-def preview_moves(books: list,
-                  dest_dir: str) -> list[tuple[Path, Path]]:
-    """
-    Return a list of (src, dst) Path pairs for all files across all books,
-    without actually moving anything.
-    """
-    dest = Path(dest_dir)
-    moves: list[tuple[Path, Path]] = []
-
-    for book in books:
-        if not book.title:
-            continue
-        folder = build_folder_path(
-            str(dest), book.author, book.series, book.series_num, book.title
-        )
-        total = book.file_count
-        for i, af in enumerate(book.files, 1):
-            stem = build_file_name(book.title, str(i), str(total))
-            dst  = folder / (stem + af.ext)
-            moves.append((af.path, dst))
-
-    return moves
 
 
 def apply_moves(moves: list[tuple[Path, Path]],

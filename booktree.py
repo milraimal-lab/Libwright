@@ -1,28 +1,13 @@
 """The author/series/book tree widget with drag-drop."""
 
-from pathlib import Path
-from typing import Optional, List
+from typing import List
 import json
-import re
-import shutil
-import sys
 
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSplitter, QLabel, QLineEdit, QPushButton, QTextEdit,
-    QFormLayout, QScrollArea, QGroupBox, QFileDialog, QMessageBox,
-    QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar,
-    QStatusBar, QFrame, QCheckBox, QMenu, QAbstractItemView,
-    QToolBar, QTreeWidget, QTreeWidgetItem, QSizePolicy, QTabWidget,
-    QComboBox, QSpinBox, QGridLayout, QInputDialog,
-)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QMimeData, QByteArray, QPoint, QTimer
-from PyQt6.QtGui  import QPixmap, QAction, QColor, QDrag, QFont, QCursor, QPainter, QPen
+from PyQt6.QtWidgets import QAbstractItemView, QTreeWidget, QTreeWidgetItem
+from PyQt6.QtCore import Qt, pyqtSignal, QMimeData, QByteArray
+from PyQt6.QtGui import QColor, QDrag
 
 import scanner as sc
-import tagger as tg
-import openlibrary as ol
-import audible as au
 import organizer as org
 
 from constants import *
@@ -97,28 +82,14 @@ class BookTreeWidget(QTreeWidget):
             auth = (book.author or "").strip() or "Unknown Author"
             by_author.setdefault(auth, []).append(book)
         for auth in sorted(by_author, key=str.casefold):
-            anode = QTreeWidgetItem(self)
-            anode.setText(0, f"📚  {auth}")
-            anode.setData(0, Qt.ItemDataRole.UserRole, (self.NODE_AUTHOR, auth))
-            anode.setFlags((anode.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-                           | Qt.ItemFlag.ItemIsDropEnabled)
-            anode.setForeground(0, QColor(LAVENDER))
-            f = anode.font(0); f.setBold(True); anode.setFont(0, f)
+            anode = self._group_node(self, self.NODE_AUTHOR, auth)
             by_series: dict = {}
             for book in by_author[auth]:
                 series = (book.series or "").strip()
                 by_series.setdefault(series, []).append(book)
             for series in sorted(by_series, key=str.casefold):
-                if series:
-                    snode = QTreeWidgetItem(anode)
-                    snode.setText(0, f"📖  {series}")
-                    snode.setData(0, Qt.ItemDataRole.UserRole, (self.NODE_SERIES, series))
-                    snode.setFlags((snode.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-                                   | Qt.ItemFlag.ItemIsDropEnabled)
-                    snode.setForeground(0, QColor(PEACH))
-                    parent_node = snode
-                else:
-                    parent_node = anode
+                parent_node = (self._group_node(anode, self.NODE_SERIES, series)
+                               if series else anode)
                 def sort_key(b):
                     try:    return (float(b.series_num or 0), (b.title or "").lower())
                     except: return (999.0, (b.title or "").lower())
@@ -128,6 +99,19 @@ class BookTreeWidget(QTreeWidget):
         self.expandAll()
         if keep_expanded: self._restore_expanded(expanded)
         self._apply_filter()
+
+    def _group_node(self, parent, kind: str, name: str) -> QTreeWidgetItem:
+        """Create an author or series row: a drop target that can't be selected."""
+        author = kind == self.NODE_AUTHOR
+        node = QTreeWidgetItem(parent)
+        node.setText(0, f"{'📚' if author else '📖'}  {name}")
+        node.setData(0, Qt.ItemDataRole.UserRole, (kind, name))
+        node.setFlags((node.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+                      | Qt.ItemFlag.ItemIsDropEnabled)
+        node.setForeground(0, QColor(LAVENDER if author else PEACH))
+        if author:
+            f = node.font(0); f.setBold(True); node.setFont(0, f)
+        return node
 
     def _add_book_node(self, parent, book):
         node = QTreeWidgetItem(parent)
@@ -143,25 +127,13 @@ class BookTreeWidget(QTreeWidget):
         # Find or create the author node
         anode = self._find_node(self.invisibleRootItem(), self.NODE_AUTHOR, auth)
         if anode is None:
-            anode = QTreeWidgetItem(self)
-            anode.setText(0, f"📚  {auth}")
-            anode.setData(0, Qt.ItemDataRole.UserRole, (self.NODE_AUTHOR, auth))
-            anode.setFlags((anode.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-                           | Qt.ItemFlag.ItemIsDropEnabled)
-            anode.setForeground(0, QColor(LAVENDER))
-            f = anode.font(0); f.setBold(True); anode.setFont(0, f)
+            anode = self._group_node(self, self.NODE_AUTHOR, auth)
 
         # Find or create the series node (if the book has a series)
         if series:
-            snode = self._find_node(anode, self.NODE_SERIES, series)
-            if snode is None:
-                snode = QTreeWidgetItem(anode)
-                snode.setText(0, f"📖  {series}")
-                snode.setData(0, Qt.ItemDataRole.UserRole, (self.NODE_SERIES, series))
-                snode.setFlags((snode.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-                               | Qt.ItemFlag.ItemIsDropEnabled)
-                snode.setForeground(0, QColor(PEACH))
-            parent_node = snode
+            parent_node = self._find_node(anode, self.NODE_SERIES, series)
+            if parent_node is None:
+                parent_node = self._group_node(anode, self.NODE_SERIES, series)
         else:
             parent_node = anode
 

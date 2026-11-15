@@ -56,7 +56,7 @@ def search_books(query: str, limit: int = 25) -> list:
         # If series_num still empty, try fetching work details for position
         work_key = doc.get('key', '')
         if series_name and not series_num and work_key:
-            series_num = _fetch_series_position(work_key, series_name)
+            series_num = _fetch_series_position(work_key)
 
         results.append({
             'key':        work_key,
@@ -74,7 +74,7 @@ def search_books(query: str, limit: int = 25) -> list:
     return results
 
 
-def _fetch_series_position(work_key: str, series_name: str) -> str:
+def _fetch_series_position(work_key: str) -> str:
     """
     Try to get the series position from the work's detail page.
     Returns '' on failure.
@@ -89,7 +89,7 @@ def _fetch_series_position(work_key: str, series_name: str) -> str:
         # {"series": [{"name": "Mistborn", "position": "1"}]}
         for entry in data.get('series') or []:
             if isinstance(entry, str):
-                name, num = _split_series(entry)
+                _, num = _split_series(entry)
                 if num:
                     return num
             elif isinstance(entry, dict):

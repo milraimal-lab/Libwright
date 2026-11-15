@@ -1,38 +1,8 @@
 """Cover-based features: auto-split by cover art, and the Files-tab
 group-by-cover view."""
-import os
 from pathlib import Path
 
-import pytest
-
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-
 import scanner as sc
-
-pytest.importorskip('PyQt6.QtWidgets')
-from PyQt6.QtWidgets import QApplication, QMessageBox
-
-
-@pytest.fixture(scope='session')
-def qapp():
-    return QApplication.instance() or QApplication([])
-
-
-@pytest.fixture
-def win(qapp, monkeypatch):
-    import mainwindow as mw
-    monkeypatch.setattr(mw, '_load_settings', lambda: {})
-    monkeypatch.setattr(mw, '_save_settings', lambda d: None)
-    monkeypatch.setattr(QMessageBox, 'information', staticmethod(lambda *a, **k: None))
-    monkeypatch.setattr(QMessageBox, 'warning', staticmethod(lambda *a, **k: None))
-    monkeypatch.setattr(QMessageBox, 'question',
-                        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes))
-    w = mw.MainWindow()
-    w.books.clear(); w.import_books.clear()
-    yield w
-    for b in w.books + w.import_books:
-        b.modified = False
-    w.close()
 
 
 def _book_with_covers(tmp: Path, title: str, covers: list):

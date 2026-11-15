@@ -42,6 +42,19 @@ class AudioFile:
     def ext(self) -> str:
         return self.path.suffix.lower()
 
+    def hydrate(self) -> bool:
+        """Read tags + duration from disk if a fast scan skipped this file.
+        Returns True when it actually read something."""
+        if self.hydrated:
+            return False
+        import tagger as tg
+        tags = tg.read_tags(self.path)
+        tags.pop('_error', None)
+        self.tags = tags
+        self.duration = float(tags.get('duration', 0) or 0)
+        self.hydrated = True
+        return True
+
     def duration_str(self) -> str:
         if self.duration <= 0:
             return '--:--'
@@ -87,6 +100,19 @@ class Book:
     @property
     def total_duration(self) -> float:
         return sum(f.duration for f in self.files)
+
+    def tag_fields(self) -> dict:
+        """The tags every file of this book shares, in the shape
+        tagger.write_tags expects (title doubles as album, author as artist,
+        narrator as composer, description as comment)."""
+        return dict(
+            title=self.title, album=self.title,
+            author=self.author, artist=self.author,
+            narrator=self.narrator, composer=self.narrator,
+            series=self.series, series_num=self.series_num,
+            year=self.year, publisher=self.publisher,
+            genre=self.genre, comment=self.description,
+            description=self.description)
 
     def duration_str(self) -> str:
         t = self.total_duration

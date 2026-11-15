@@ -4,23 +4,14 @@ Regression guard for 'search by more than titles' — the old filter only
 matched the book node's display text, so author/series/narrator searches
 returned nothing.
 """
-import os
 from pathlib import Path
 
 import pytest
 
-os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
-
 import scanner as sc
 
 pytest.importorskip('PyQt6.QtWidgets')
-from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
-
-
-@pytest.fixture(scope='session')
-def qapp():
-    return QApplication.instance() or QApplication([])
 
 
 def _book(title, author='', series='', series_num='', narrator='',

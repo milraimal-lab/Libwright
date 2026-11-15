@@ -61,3 +61,38 @@ def test_book_duration_formatting():
     b = sc.Book()
     b.files.append(sc.AudioFile(path=Path('a.mp3'), duration=3660))
     assert b.duration_str() == '1h 01m'
+
+
+def test_hydrate_reads_once_and_drops_the_error_marker(monkeypatch):
+    import tagger
+    calls = []
+    monkeypatch.setattr(tagger, 'read_tags', lambda p: calls.append(p) or
+                        {'title': 'T', 'duration': 12.5, '_error': 'boom'})
+    af = sc.AudioFile(path=Path('x.mp3'))
+    assert af.hydrate() is True
+    assert af.hydrated and af.duration == 12.5
+    assert af.tags == {'title': 'T', 'duration': 12.5}        # '_error' never leaks out
+    assert af.hydrate() is False and len(calls) == 1          # already read → no-op
+
+def test_hydrate_survives_a_missing_duration(monkeypatch):
+    import tagger
+    monkeypatch.setattr(tagger, 'read_tags', lambda p: {'duration': None})
+    af = sc.AudioFile(path=Path('x.mp3'))
+    af.hydrate()
+    assert af.duration == 0.0 and af.hydrated
+
+
+def test_tag_fields_mirrors_the_paired_tags():
+    b = sc.Book()
+    b.title, b.author, b.narrator, b.description = 'T', 'A', 'N', 'D'
+    b.series, b.series_num, b.year, b.publisher, b.genre = 'S', '2.5', '2020', 'P', 'G'
+    f = b.tag_fields()
+    assert f['title'] == f['album'] == 'T'
+    assert f['author'] == f['artist'] == 'A'
+    assert f['narrator'] == f['composer'] == 'N'
+    assert f['description'] == f['comment'] == 'D'
+    assert (f['series'], f['series_num'], f['year'], f['publisher'], f['genre']) == (
+        'S', '2.5', '2020', 'P', 'G')
+    # per-file values are the caller's job, and a fresh dict comes back each time
+    assert not {'track', 'track_total', 'cover_art'} & set(f)
+    assert b.tag_fields() is not f

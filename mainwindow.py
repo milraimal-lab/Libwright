@@ -2,27 +2,19 @@
 
 from pathlib import Path
 from typing import Optional, List
-import json
-import re
 import shutil
-import sys
 
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QSplitter, QLabel, QLineEdit, QPushButton, QTextEdit,
-    QFormLayout, QScrollArea, QGroupBox, QFileDialog, QMessageBox,
-    QDialog, QTableWidget, QTableWidgetItem, QHeaderView, QProgressBar,
-    QStatusBar, QFrame, QCheckBox, QMenu, QAbstractItemView,
-    QToolBar, QTreeWidget, QTreeWidgetItem, QSizePolicy, QTabWidget,
-    QComboBox, QSpinBox, QGridLayout, QInputDialog, QListWidget, QListWidgetItem,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, QLabel,
+    QLineEdit, QPushButton, QFileDialog, QMessageBox, QDialog, QProgressBar,
+    QStatusBar, QMenu, QAbstractItemView, QToolBar, QTabWidget, QInputDialog,
+    QListWidget, QListWidgetItem,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QMimeData, QByteArray, QPoint, QTimer
-from PyQt6.QtGui  import QPixmap, QAction, QColor, QDrag, QFont, QCursor, QPainter, QPen
+from PyQt6.QtCore import Qt, QThread, QTimer
+from PyQt6.QtGui import QAction
 
 import scanner as sc
 import tagger as tg
-import openlibrary as ol
-import audible as au
 import organizer as org
 
 from constants import *
@@ -1055,12 +1047,7 @@ class MainWindow(QMainWindow):
             book.modified = True
             lst = self.books if book in self.books else self.import_books
             for af in taken:
-                # fast scan may not have read this file — hydrate for a good title
-                if not af.hydrated:
-                    t = tg.read_tags(af.path); t.pop('_error', None)
-                    af.tags = t
-                    af.duration = float(t.get('duration', 0) or 0)
-                    af.hydrated = True
+                af.hydrate()   # a fast scan may have skipped it — read for a good title
                 nb = self._new_book_from(book, [af])
                 # each file is its own book → title from ITS name, not the
                 # album tag it shares with its neighbours
@@ -1093,11 +1080,7 @@ class MainWindow(QMainWindow):
             return
         # Fast scan may not have read every file yet — hydrate now
         for af in book.files:
-            if not af.hydrated:
-                t = tg.read_tags(af.path); t.pop('_error', None)
-                af.tags = t
-                af.duration = float(t.get('duration', 0) or 0)
-                af.hydrated = True
+            af.hydrate()
 
         groups: dict = {}
         for af in book.files:
@@ -1143,11 +1126,7 @@ class MainWindow(QMainWindow):
                 "Select a book with several files first.")
             return
         for af in book.files:
-            if not af.hydrated:
-                t = tg.read_tags(af.path); t.pop('_error', None)
-                af.tags = t
-                af.duration = float(t.get('duration', 0) or 0)
-                af.hydrated = True
+            af.hydrate()
 
         groups: dict = {}; order: list = []
         for af in book.files:
@@ -1364,14 +1343,8 @@ class MainWindow(QMainWindow):
             book, opath, recycle = job
             # Tag the new file with the book's metadata + cover
             try:
-                tg.write_tags(Path(out_path), dict(
-                    title=book.title, album=book.title,
-                    author=book.author, artist=book.author,
-                    narrator=book.narrator, composer=book.narrator,
-                    series=book.series, series_num=book.series_num,
-                    year=book.year, publisher=book.publisher,
-                    genre=book.genre, comment=book.description,
-                    description=book.description, cover_art=book.cover_art))
+                tg.write_tags(Path(out_path),
+                              {**book.tag_fields(), 'cover_art': book.cover_art})
                 note = ''
             except Exception as e:
                 note = f"  (tagging failed: {e})"

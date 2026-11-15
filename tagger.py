@@ -698,12 +698,9 @@ _FLAC_MAP = {
 }
 
 
-def _read_flac(path: Path) -> dict:
-    result: dict = {}
-    audio = FLAC(path)
-    result['duration'] = audio.info.length
-    t = audio.tags or {}
-
+def _vorbis_fields(t, result: dict) -> dict:
+    """Fill *result* from Vorbis comments — the tag format FLAC, Ogg Vorbis
+    and Opus all share."""
     def g(k): return (t.get(k.lower()) or [''])[0]
 
     _art  = g('artist')
@@ -733,17 +730,31 @@ def _read_flac(path: Path) -> dict:
     result['language']    = g('language')
     result['asin']        = g('asin')
     result['isbn']        = g('isbn')
+    return result
 
+
+def _cover_picture(data: bytes) -> Picture:
+    """A front-cover picture block (FLAC stores it natively, Ogg as base64)."""
+    pic = Picture()
+    pic.type = 3
+    pic.mime = 'image/jpeg'
+    pic.desc = 'Cover'
+    pic.data = data
+    return pic
+
+
+def _read_flac(path: Path) -> dict:
+    audio = FLAC(path)
+    result = _vorbis_fields(audio.tags or {}, {'duration': audio.info.length})
     if audio.pictures:
         result['cover_art'] = audio.pictures[0].data
-
     return result
 
 
 def _write_flac(path: Path, fields: dict) -> None:
     audio = FLAC(path)
     for fk, tk in _FLAC_MAP.items():
-        val = fields.get(fk) or (fields.get('album') if fk == 'album' and 'title' in fields else None)
+        val = fields.get(fk) or None
         if fk == 'album':
             val = fields.get('album') or fields.get('title')
         if val is not None and str(val).strip():
@@ -751,13 +762,8 @@ def _write_flac(path: Path, fields: dict) -> None:
 
     cover = fields.get('cover_art')
     if cover:
-        pic = Picture()
-        pic.type = 3
-        pic.mime = 'image/jpeg'
-        pic.desc = 'Cover'
-        pic.data = cover
         audio.clear_pictures()
-        audio.add_picture(pic)
+        audio.add_picture(_cover_picture(cover))
 
     audio.save()
 
@@ -768,36 +774,7 @@ def _write_flac(path: Path, fields: dict) -> None:
 
 def _read_vorbis(audio, result: dict) -> dict:
     t = audio.tags or {}
-
-    def g(k): return (t.get(k.lower()) or [''])[0]
-
-    _art  = g('artist')
-    _perf = g('performer')
-    _comp = g('composer')
-    result['title']       = g('title')
-    result['author']      = _art
-    result['artist']      = _art
-    result['album']       = g('album')
-    result['narrator']    = (g('narrator')
-                             or (_perf if _perf and _perf != _art else '')
-                             or (_comp if _comp and _comp != _art else ''))
-    result['composer']    = _comp
-    result['year']        = g('date') or g('year')
-    result['genre']       = g('genre')
-    result['publisher']   = g('organization') or g('publisher')
-    result['comment']     = g('comment')
-    result['description'] = g('description')
-    result['series']      = g('series')
-    result['series_num']  = g('series-part') or g('series_num')
-    result['grouping']    = g('grouping')
-    result['track']       = g('tracknumber')
-    result['track_total'] = g('tracktotal')
-    result['disc']        = g('discnumber')
-    result['subtitle']    = g('subtitle')
-    result['copyright']   = g('copyright')
-    result['language']    = g('language')
-    result['asin']        = g('asin')
-    result['isbn']        = g('isbn')
+    _vorbis_fields(t, result)
 
     mbp = t.get('metadata_block_picture')
     if mbp:
@@ -820,12 +797,8 @@ def _write_vorbis(audio, fields: dict) -> None:
 
     cover = fields.get('cover_art')
     if cover:
-        pic = Picture()
-        pic.type = 3
-        pic.mime = 'image/jpeg'
-        pic.desc = 'Cover'
-        pic.data = cover
-        audio['metadata_block_picture'] = [base64.b64encode(pic.write()).decode('ascii')]
+        audio['metadata_block_picture'] = [
+            base64.b64encode(_cover_picture(cover).write()).decode('ascii')]
 
     audio.save()
 
