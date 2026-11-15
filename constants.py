@@ -1,7 +1,7 @@
 """App-wide constants: version, theme, colors, MIME types, search columns."""
 
 APP_NAME    = "Libwright"
-APP_VERSION = "2.10.4"
+APP_VERSION = "2.10.5"
 
 # How many M4B builds may run at once. ffmpeg concat / stream-copy jobs are
 # mostly I/O-bound, so running a few together finishes a batch much faster

@@ -160,6 +160,53 @@ def test_is_standard_tag():
     assert not tg.is_standard_tag('WXXX:ad-url')
 
 
+# ── custom (free-form) tags on M4B ───────────────────────────────
+
+CUSTOM = '----:com.apple.iTunes:MY_NOTE'
+
+def test_m4b_add_custom_tag(m4b):
+    assert tg.add_raw_tag(m4b, CUSTOM, 'Café – 日本')      # used to fail silently
+    from mutagen.mp4 import MP4, AtomDataType
+    stored = MP4(m4b).tags[CUSTOM][0]
+    assert stored.dataformat == AtomDataType.UTF8          # stored as text, not binary
+    assert tg.read_all_tags_raw(m4b)[CUSTOM] == 'Café – 日本'
+
+def test_m4b_edit_custom_tag(m4b):
+    tg.add_raw_tag(m4b, CUSTOM, 'first')
+    assert tg.update_raw_tag(m4b, CUSTOM, 'second')        # used to fail silently
+    assert tg.read_all_tags_raw(m4b)[CUSTOM] == 'second'
+
+def test_m4b_custom_tag_is_an_extra_and_purgeable(m4b):
+    tg.add_raw_tag(m4b, CUSTOM, 'x')
+    assert not tg.is_standard_tag(CUSTOM)                 # shows in the Extras panel
+    assert CUSTOM in tg.purge_extra_tags(m4b)
+    assert CUSTOM not in tg.read_all_tags_raw(m4b)
+
+def test_m4b_raw_values_are_readable_text(m4b):
+    tg.write_tags(m4b, dict(FIELDS, track='3', track_total='12', cover_art=b'\xff\xd8' + b'x' * 600))
+    raw = tg.read_all_tags_raw(m4b)
+    assert raw['----:com.apple.iTunes:SERIES'] == 'Great Series'   # not "[MP4FreeForm(b'…')]"
+    assert raw['\xa9ART'] == 'Jane Doe'                                # not "['Jane Doe']"
+    assert raw['trkn'] == '3/12'
+    assert raw['covr'].startswith('<image, ')
+
+def test_extras_panel_shows_and_saves_m4b_custom_tags(qapp, m4b):
+    """End to end through the Edit Metadata tab, as the user does it."""
+    import scanner as sc
+    from tabs import EditMetadataTab
+    tg.add_raw_tag(m4b, CUSTOM, 'before')
+    book = sc.Book(); book.title = 'B'
+    book.files.append(sc.AudioFile(path=m4b, hydrated=True))
+    tab = EditMetadataTab()
+    tab.set_books([book])
+    shown = {k: orig for k, orig, _ in tab._extra_edits}
+    assert shown[CUSTOM] == 'before'
+    edit = next(e for k, _, e in tab._extra_edits if k == CUSTOM)
+    edit.setText('after')
+    tab._save_extra_edits()
+    assert tg.read_all_tags_raw(m4b)[CUSTOM] == 'after'
+
+
 # ── tag-agnostic audio hashing ───────────────────────────────────
 
 def test_audio_hash_ignores_tag_differences(mp3, tmp_path):

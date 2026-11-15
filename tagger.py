@@ -58,7 +58,7 @@ from mutagen.id3 import (
     TIT2, TIT1, TIT3, TPE1, TPE2, TALB, TDRC, TRCK, TPOS,
     TCOM, TCOP, TLAN, COMM, TCON, TPUB, TXXX, APIC,
 )
-from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm
+from mutagen.mp4 import MP4, MP4Cover, MP4FreeForm, AtomDataType
 
 # ──────────────────────────────────────────────────────────────────
 #  Patch: malformed chapter atoms must not kill tag reading.
@@ -208,12 +208,26 @@ def audio_content_md5(path: Path) -> Optional[str]:
         return None
 
 
+def _raw_text(v) -> str:
+    """Readable text for one raw tag value. MP4 atoms come back as lists of
+    strings, bytes (free-form tags), (n, total) tuples or cover images."""
+    if isinstance(v, list):
+        return '; '.join(_raw_text(x) for x in v)
+    if isinstance(v, MP4Cover):                  # a bytes subclass: check first
+        return f'<image, {len(v):,} bytes>'
+    if isinstance(v, (bytes, bytearray)):        # includes MP4FreeForm
+        return bytes(v).decode('utf-8', errors='replace')
+    if isinstance(v, tuple):                     # trkn / disk
+        return '/'.join(str(x) for x in v)
+    return str(v)
+
+
 def read_all_tags_raw(path: Path) -> dict:
-    """Return every tag present in the file (key: raw value string)."""
+    """Return every tag present in the file (key: value as readable text)."""
     try:
         audio = mutagen.File(path, easy=False)
         if audio and audio.tags:
-            return {str(k): str(v) for k, v in audio.tags.items()}
+            return {str(k): _raw_text(v) for k, v in audio.tags.items()}
     except Exception:
         pass
     return {}
@@ -349,7 +363,7 @@ def add_raw_tag(path: Path, key: str, value: str) -> bool:
             t = audio.tags
             if key.startswith('----:'):
                 t[key] = [MP4FreeForm(str(value).encode('utf-8'),
-                                      dataformat=MP4FreeForm.FORMAT_UTF8)]
+                                      dataformat=AtomDataType.UTF8)]
             else:
                 t[key] = [str(value)]
             audio.save()
@@ -393,7 +407,7 @@ def update_raw_tag(path: Path, key: str, value: str) -> bool:
         # MP4 free-form (----:com.apple.iTunes:...) — list of bytes / MP4FreeForm
         elif isinstance(existing, list) and existing and isinstance(existing[0], (bytes, bytearray, MP4FreeForm)):
             tags[key] = [MP4FreeForm(value.encode('utf-8'),
-                                     dataformat=MP4FreeForm.FORMAT_UTF8)]
+                                     dataformat=AtomDataType.UTF8)]
         # MP4 standard list of strings
         elif isinstance(existing, list):
             tags[key] = [value]
