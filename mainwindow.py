@@ -715,8 +715,6 @@ class MainWindow(QMainWindow):
         self.import_books.append(book)
         self.import_tree.add_book(book)
         self.import_count_lbl.setText(f"{len(self.import_tree._books)} book(s) found…")
-        # Author folder is created in the LIBRARY root, not the import folder
-        self._ensure_author_folder(book)
 
     def _on_import_scan_done(self, books):
         self.import_books.sort(
@@ -865,7 +863,11 @@ class MainWindow(QMainWindow):
         self._ensure_author_folder(book)
 
     def _ensure_author_folder(self, book: sc.Book):
-        """Create <library_root>/<Author>/ if missing. Files are NOT moved."""
+        """Create <library_root>/<Author>/ if missing. Files are NOT moved.
+
+        Only call this for books that live in the Library. Import books are
+        left out on purpose: their tags are unvetted, and a folder appears on
+        its own the moment a book is actually moved in."""
         if not self.last_folder or not book.author:
             return
         safe = org.sanitize(book.author)
@@ -1855,8 +1857,10 @@ class MainWindow(QMainWindow):
         for book in books:
             book.author = new_name; book.modified = True
         self._populate_both_trees(keep_expanded=True)
-        if self.last_folder:
-            for book in books: self._ensure_author_folder(book)
+        library_ids = {b.id for b in self.books}
+        for book in books:
+            if book.id in library_ids:
+                self._ensure_author_folder(book)
         self._set_status(
             f"Set author = '{new_name}' for {len(books)} book(s) — unsaved. "
             f"Press Ctrl+S or Save All Tags to write.")
